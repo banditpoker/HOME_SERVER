@@ -14,7 +14,15 @@ entries:
     path: memory/services/telegram-gateway/overview.md
     kind: service
     status: planned
+  - id: esp8266-firmware-overview
+    path: memory/services/esp8266-firmware/overview.md
+    kind: service
+    status: active
   - id: adr-canonical-context
     path: memory/decisions/ADR-001-canonical-context-in-git.md
+    kind: decision
+    status: accepted
+  - id: adr-telegram-gateway-v1-design
+    path: memory/decisions/ADR-002-telegram-gateway-v1-design.md
     kind: decision
     status: accepted

@@ -1,0 +1,14 @@
+.git
+.vscode
+.idea
+node_modules
+dist
+coverage
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+**/.npmrc
+npm-debug.log*

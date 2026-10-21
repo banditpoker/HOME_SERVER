@@ -1,5 +1,31 @@
 version: 1
 services:
+  esp8266-firmware:
+    type: device
+    path: apps/Esp32
+    status: existing
+    runtime: embedded
+    language: cpp
+    hardware:
+      board: nodemcuv2
+      microcontroller: ESP8266
+    responsibilities:
+      - connect the NodeMCU device to Wi-Fi
+      - accept firmware updates over ArduinoOTA
+      - indicate device activity with the built-in LED
+    exposes:
+      - name: arduino-ota
+        protocol: udp
+        port: 8266
+    depends_on: []
+    used_by: []
+    data:
+      stores: []
+    operations:
+      documentation: apps/Esp32/ESP_FEATURE_MAP.md
+      build: pio run
+      monitor: pio device monitor --baud 115200
+
   telegram-gateway:
     type: application
     path: apps/telegram-gateway

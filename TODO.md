@@ -49,30 +49,30 @@ checked only after the corresponding file or behavior exists and has been verifi
 
 ### Design and acceptance
 
-- [ ] Define the Telegram gateway v1 contract and versioning policy.
-- [ ] Define normalized incoming event fields and duplicate-update behavior.
-- [ ] Define outbound message request, response, and error formats.
-- [ ] Define authorization rules for users, chats, and commands.
-- [ ] Define retry, timeout, idempotency, and delivery-status semantics.
-- [ ] Define health/readiness and observability requirements.
-- [ ] Record unresolved design choices and assumptions in an ADR.
+- [x] Define the Telegram gateway v1 contract and versioning policy.
+- [x] Define normalized incoming event fields and duplicate-update behavior.
+- [x] Define outbound message request, response, and error formats.
+- [x] Define authorization rules for users, chats, and commands.
+- [x] Define retry, timeout, idempotency, and delivery-status semantics.
+- [x] Define health/readiness and observability requirements.
+- [x] Record design choices and assumptions in an ADR.
 
 ### Scaffold and configuration
 
-- [ ] Create `apps/telegram-gateway/` with TypeScript/Node.js structure.
-- [ ] Add package scripts for lint, typecheck, build, test, and integration test.
-- [ ] Add strict TypeScript configuration and formatting/lint configuration.
-- [ ] Add Dockerfile using a non-root runtime image.
-- [ ] Add `.env.example` without real credentials.
+- [x] Create `apps/telegram-gateway/` with TypeScript/Node.js structure.
+- [x] Add package scripts for lint, typecheck, build, test, and integration test.
+- [x] Add strict TypeScript configuration and formatting/lint configuration.
+- [x] Add Dockerfile using a non-root runtime image.
+- [x] Add `.env.example` without real credentials.
 - [ ] Add local Compose wiring for gateway and PostgreSQL.
-- [ ] Add configuration validation with explicit startup errors.
+- [x] Add configuration validation with explicit startup errors.
 
 ### Core implementation
 
-- [ ] Add Telegram webhook route and secret-token verification.
-- [ ] Validate and normalize incoming Telegram updates.
-- [ ] Persist accepted events with duplicate protection.
-- [ ] Add user/chat authorization backed by PostgreSQL.
+- [x] Add Telegram webhook route and secret-token verification.
+- [x] Validate and normalize incoming Telegram text updates.
+- [x] Persist accepted events with duplicate protection.
+- [x] Add user/chat authorization backed by PostgreSQL.
 - [ ] Add command routing with an explicit command allowlist.
 - [ ] Add outbound text-message adapter.
 - [ ] Add delivery outbox, timeout, retry, and idempotency handling.
@@ -80,9 +80,9 @@ checked only after the corresponding file or behavior exists and has been verifi
 
 ### Reliability and operations
 
-- [ ] Add `/health` and `/ready` endpoints.
-- [ ] Add structured logs with token and payload redaction.
-- [ ] Add delivery and failure metrics or an explicitly documented v1 decision.
+- [x] Add `/health` and `/ready` endpoints.
+- [x] Add structured logs with token and payload redaction.
+- [x] Record the v1 decision to use persisted delivery state and structured logs without a Prometheus endpoint.
 - [ ] Add PostgreSQL migrations and rollback/recovery notes.
 - [ ] Complete the Telegram gateway runbook with deploy, rollback, and incident steps.
 
@@ -112,6 +112,7 @@ checked only after the corresponding file or behavior exists and has been verifi
 
 ## Phase 4 - Future services
 
+- [x] Add the initial ESP8266 firmware service under `apps/Esp32/` and document its boundaries.
 - [ ] Define the IoT water-quality event contract.
 - [ ] Add the IoT service using the Telegram gateway adapter.
 - [ ] Document monitoring, backup, media, ecommerce, and automation boundaries.
