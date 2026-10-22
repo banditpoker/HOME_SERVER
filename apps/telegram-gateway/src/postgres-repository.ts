@@ -5,9 +5,12 @@ import type {
   GatewayRepository,
   OutboundMessageRequest,
 } from "./app.js";
+import type { DeliveryRepository, PendingDelivery } from "./delivery-worker.js";
 import type { TelegramEvent } from "./telegram-update.js";
 
-export class PostgresGatewayRepository implements GatewayRepository {
+export class PostgresGatewayRepository
+  implements GatewayRepository, DeliveryRepository
+{
   constructor(private readonly pool: Pool) {}
 
   async checkReady(): Promise<void> {
@@ -133,5 +136,90 @@ export class PostgresGatewayRepository implements GatewayRepository {
           deliveryStatus: current.status,
         }
       : { status: "conflict" };
+  }
+
+  async claimNextDelivery(now: Date): Promise<PendingDelivery | null> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<PendingDelivery>(
+        `
+          UPDATE message_deliveries
+          SET status = 'sending',
+              attempt_count = attempt_count + 1,
+              updated_at = now()
+          WHERE delivery_id = (
+            SELECT delivery_id
+            FROM message_deliveries
+            WHERE (
+              status = 'queued'
+              OR (status = 'retry_wait' AND next_attempt_at <= $1)
+            )
+            AND attempt_count < 5
+            ORDER BY created_at
+            FOR UPDATE SKIP LOCKED
+            LIMIT 1
+          )
+          RETURNING
+            delivery_id AS "deliveryId",
+            chat_id AS "chatId",
+            text,
+            attempt_count AS "attemptCount"
+        `,
+        [now],
+      );
+      await client.query("COMMIT");
+      return result.rows[0] ?? null;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async markDelivered(deliveryId: string, completedAt: Date): Promise<void> {
+    await this.pool.query(
+      `
+        UPDATE message_deliveries
+        SET status = 'delivered', completed_at = $2, updated_at = now()
+        WHERE delivery_id = $1 AND status = 'sending'
+      `,
+      [deliveryId, completedAt],
+    );
+  }
+
+  async markRetry(
+    deliveryId: string,
+    nextAttemptAt: Date,
+    errorCode: string,
+  ): Promise<void> {
+    await this.pool.query(
+      `
+        UPDATE message_deliveries
+        SET status = 'retry_wait',
+            next_attempt_at = $2,
+            last_error_code = $3,
+            updated_at = now()
+        WHERE delivery_id = $1 AND status = 'sending'
+      `,
+      [deliveryId, nextAttemptAt, errorCode],
+    );
+  }
+
+  async markFailed(
+    deliveryId: string,
+    completedAt: Date,
+    errorCode: string,
+  ): Promise<void> {
+    await this.pool.query(
+      `
+        UPDATE message_deliveries
+        SET status = 'failed', completed_at = $2, last_error_code = $3,
+            updated_at = now()
+        WHERE delivery_id = $1 AND status = 'sending'
+      `,
+      [deliveryId, completedAt, errorCode],
+    );
   }
 }

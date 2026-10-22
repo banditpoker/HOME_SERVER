@@ -64,7 +64,7 @@ checked only after the corresponding file or behavior exists and has been verifi
 - [x] Add strict TypeScript configuration and formatting/lint configuration.
 - [x] Add Dockerfile using a non-root runtime image.
 - [x] Add `.env.example` without real credentials.
-- [ ] Add local Compose wiring for gateway and PostgreSQL.
+- [x] Add local Compose wiring for gateway and PostgreSQL.
 - [x] Add configuration validation with explicit startup errors.
 
 ### Core implementation
@@ -74,8 +74,8 @@ checked only after the corresponding file or behavior exists and has been verifi
 - [x] Persist accepted events with duplicate protection.
 - [x] Add user/chat authorization backed by PostgreSQL.
 - [ ] Add command routing with an explicit command allowlist.
-- [ ] Add outbound text-message adapter.
-- [ ] Add delivery outbox, timeout, retry, and idempotency handling.
+- [x] Add outbound text-message adapter.
+- [x] Add delivery outbox, timeout, retry, and idempotency handling.
 - [ ] Add stable internal adapter API for future services.
 
 ### Reliability and operations

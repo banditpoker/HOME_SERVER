@@ -24,6 +24,6 @@ Available checks: `npm run lint`, `npm run typecheck`, `npm run build`,
   idempotency protection.
 
 The webhook accepts authorized text messages and ignores unsupported update
-types. Outbound delivery is currently persisted as `queued`; the Telegram API
-worker, timeout, retry, and terminal delivery handling are not implemented
-yet. See the accepted contract at `../../docs/contracts/telegram-gateway-v1.md`.
+types. A background worker claims queued deliveries, sends plain text through
+the Telegram Bot API, and persists delivered, retry-wait, or failed status.
+See the accepted contract at `../../docs/contracts/telegram-gateway-v1.md`.
