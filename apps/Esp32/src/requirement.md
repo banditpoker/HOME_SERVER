@@ -200,14 +200,19 @@ Khoảng trống lớn hơn:
 Firmware hỗ trợ cập nhật qua Wi-Fi bằng `ArduinoOTA`. Đây là dự án
 NodeMCU ESP8266 (`board = nodemcuv2`), không phải ESP32.
 
+OTA luôn được bật mặc định trong firmware, không có build flag để tắt. Sau
+mỗi lần khởi động, OTA tự khởi tạo khi Wi-Fi kết nối; khi Wi-Fi mất, firmware
+tự reconnect và tiếp tục phục vụ OTA sau khi kết nối trở lại.
+
 ### Cấu hình lần đầu
 
 1. Copy `.env.example` thành `.env` trong thư mục `apps/Esp32`.
 2. Điền `WIFI_SSID`, `WIFI_PASSWORD` và `OTA_PASSWORD` trong `.env`.
-3. PlatformIO sẽ tự nạp các giá trị này khi build; không sửa `include/secrets.h`
+3. Điền `DEVICE_NAME` và `OTA_HOSTNAME` bằng giá trị duy nhất cho thiết bị.
+4. PlatformIO sẽ tự nạp các giá trị này khi build; không sửa `include/secrets.h`
    hoặc thêm password vào `platformio.ini`.
-4. Nạp firmware lần đầu bằng USB.
-5. Mở Serial Monitor và chờ log:
+5. Nạp firmware lần đầu bằng USB.
+6. Mở Serial Monitor và chờ log:
 
    ```text
    [OTA] ready at nodemcu-01.local

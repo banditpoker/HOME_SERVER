@@ -36,7 +36,16 @@ def load_dotenv(path: Path) -> dict[str, str]:
 
 project_dir = Path(env.subst("$PROJECT_DIR"))
 values = load_dotenv(project_dir / ".env")
-required_keys = ("WIFI_SSID", "WIFI_PASSWORD", "OTA_PASSWORD")
+required_keys = (
+    "WIFI_SSID",
+    "WIFI_PASSWORD",
+    "OTA_PASSWORD",
+    "DEVICE_NAME",
+    "OTA_HOSTNAME",
+    "TELEGRAM_GATEWAY_URL",
+    "TELEGRAM_CHAT_ID",
+    "INTERNAL_API_TOKEN",
+)
 missing_keys = [key for key in required_keys if not values.get(key)]
 if missing_keys:
     missing = ", ".join(missing_keys)
@@ -54,6 +63,11 @@ secrets_header.write_text(
             f"constexpr char WIFI_SSID[] = {json.dumps(values['WIFI_SSID'])};",
             f"constexpr char WIFI_PASSWORD[] = {json.dumps(values['WIFI_PASSWORD'])};",
             f"constexpr char OTA_PASSWORD[] = {json.dumps(values['OTA_PASSWORD'])};",
+            f"constexpr char DEVICE_NAME[] = {json.dumps(values['DEVICE_NAME'])};",
+            f"constexpr char OTA_HOSTNAME[] = {json.dumps(values['OTA_HOSTNAME'])};",
+            f"constexpr char TELEGRAM_GATEWAY_URL[] = {json.dumps(values['TELEGRAM_GATEWAY_URL'].rstrip('/'))};",
+            f"constexpr char TELEGRAM_CHAT_ID[] = {json.dumps(values['TELEGRAM_CHAT_ID'])};",
+            f"constexpr char INTERNAL_API_TOKEN[] = {json.dumps(values['INTERNAL_API_TOKEN'])};",
             "",
         ]
     ),

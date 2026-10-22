@@ -1,20 +1,42 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
+#include <EEPROM.h>
+#include <ESP8266HTTPClient.h>
 #include <ESP8266WiFi.h>
 
 #include "secrets.h"
 
 namespace {
-constexpr char OTA_HOSTNAME[] = "nodemcu-01";
 constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 25000;
 constexpr uint32_t WIFI_RETRY_INTERVAL_MS = 10000;
 constexpr uint32_t BLINK_INTERVAL_MS = 500;
+constexpr uint32_t TELEGRAM_RETRY_INTERVAL_MS = 10000;
+constexpr uint8_t EEPROM_SIZE = 8;
+constexpr int EEPROM_BOOT_COUNTER_ADDRESS = 0;
 
 uint32_t lastWiFiAttemptAt = 0;
 uint32_t lastBlinkAt = 0;
+uint32_t bootSequence = 0;
+uint32_t lastTelegramAttemptAt = 0;
+uint32_t wifiConnectionSequence = 0;
 bool otaStarted = false;
 bool otaInProgress = false;
+bool wifiConnectionActive = false;
+bool telegramNotifiedForConnection = false;
 bool ledState = false;
+
+void initializeBootSequence() {
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.get(EEPROM_BOOT_COUNTER_ADDRESS, bootSequence);
+  if (bootSequence == UINT32_MAX) {
+    bootSequence = 0;
+  }
+  ++bootSequence;
+  EEPROM.put(EEPROM_BOOT_COUNTER_ADDRESS, bootSequence);
+  EEPROM.commit();
+  Serial.printf("[BOOT] sequence=%lu, chip_id=%06X\n",
+                static_cast<unsigned long>(bootSequence), ESP.getChipId());
+}
 
 void setupOta() {
   if (otaStarted) {
@@ -73,6 +95,88 @@ bool connectWiFi() {
   return true;
 }
 
+String jsonEscape(const String& value) {
+  String escaped;
+  escaped.reserve(value.length() + 8);
+
+  for (size_t index = 0; index < value.length(); ++index) {
+    const char character = value[index];
+    switch (character) {
+      case '\\':
+        escaped += "\\\\";
+        break;
+      case '"':
+        escaped += "\\\"";
+        break;
+      case '\n':
+        escaped += "\\n";
+        break;
+      case '\r':
+        escaped += "\\r";
+        break;
+      case '\t':
+        escaped += "\\t";
+        break;
+      default:
+        escaped += character;
+        break;
+    }
+  }
+
+  return escaped;
+}
+
+bool notifyTelegram() {
+  WiFiClient client;
+  HTTPClient http;
+  const String endpoint =
+      String(TELEGRAM_GATEWAY_URL) + "/internal/messages/v1";
+  if (!http.begin(client, endpoint)) {
+    Serial.println("[Telegram] failed to initialize HTTP client");
+    return false;
+  }
+
+  http.setTimeout(5000);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", String("Bearer ") + INTERNAL_API_TOKEN);
+  const String idempotencyKey =
+      String("esp-") + String(ESP.getChipId(), HEX) + "-boot-" +
+      String(bootSequence) + "-wifi-" + String(wifiConnectionSequence);
+  const String text = String("ESP online\nDevice: ") + DEVICE_NAME +
+                      "\nIP: " + WiFi.localIP().toString();
+  const String payload = String("{\"idempotencyKey\":\"") +
+                         jsonEscape(idempotencyKey) +
+                         "\",\"chatId\":\"" + jsonEscape(TELEGRAM_CHAT_ID) +
+                         "\",\"text\":\"" + jsonEscape(text) +
+                         "\",\"parseMode\":\"plain\"}";
+
+  const int statusCode = http.POST(payload);
+  const String responseBody = http.getString();
+  http.end();
+
+  if (statusCode == HTTP_CODE_ACCEPTED || statusCode == HTTP_CODE_OK) {
+    Serial.println("[Telegram] device status queued");
+    return true;
+  }
+
+  Serial.printf("[Telegram] notification failed, status=%d, response=%s\n",
+                statusCode, responseBody.c_str());
+  return false;
+}
+
+void notifyTelegramWhenConnected() {
+  if (telegramNotifiedForConnection ||
+      (lastTelegramAttemptAt != 0 &&
+       millis() - lastTelegramAttemptAt < TELEGRAM_RETRY_INTERVAL_MS)) {
+    return;
+  }
+
+  lastTelegramAttemptAt = millis();
+  if (notifyTelegram()) {
+    telegramNotifiedForConnection = true;
+  }
+}
+
 void updateBlink() {
   if (otaInProgress || millis() - lastBlinkAt < BLINK_INTERVAL_MS) {
     return;
@@ -88,6 +192,7 @@ void setup() {
   Serial.begin(115200);
   delay(100);
   Serial.println("[BOOT] OTA and blinking firmware starting");
+  initializeBootSequence();
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
@@ -101,10 +206,18 @@ void loop() {
   const uint32_t now = millis();
 
   if (WiFi.status() == WL_CONNECTED) {
+    if (!wifiConnectionActive) {
+      ++wifiConnectionSequence;
+      wifiConnectionActive = true;
+      telegramNotifiedForConnection = false;
+    }
     setupOta();
+    notifyTelegramWhenConnected();
     ArduinoOTA.handle();
   } else if (now - lastWiFiAttemptAt >= WIFI_RETRY_INTERVAL_MS) {
     lastWiFiAttemptAt = now;
+    wifiConnectionActive = false;
+    telegramNotifiedForConnection = false;
     Serial.println("[WiFi] disconnected, reconnecting...");
     connectWiFi();
   }
