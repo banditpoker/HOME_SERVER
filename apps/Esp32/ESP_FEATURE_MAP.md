@@ -13,6 +13,8 @@ mindmap
       Wi-Fi station mode
       SSID/password trong include/secrets.h
       Device name và OTA hostname lấy từ `.env`
+      Đổi tên qua trang cấu hình tại IP của ESP
+      Tên mới lưu trong EEPROM và giữ qua reboot
       Tự reconnect khi mất Wi-Fi
       In địa chỉ IP qua Serial
       Gửi IP và device name tới Telegram sau khi kết nối
@@ -44,6 +46,7 @@ mindmap
 |---|---|---|
 | Kết nối Wi-Fi | Đã có | Tự kết nối và reconnect |
 | Thông báo trạng thái Telegram | Đã có | Gửi `ESP Agent 01` và IP qua Telegram sau boot/reconnect |
+| Đổi tên qua trình duyệt | Đang phát triển | Mở `http://<IP-ESP>/`, lưu tên mới trong LAN; cập nhật tên Telegram và hostname OTA |
 | Upload firmware qua USB | Đã có | Dùng `COM5` khi cần khôi phục |
 | Upload firmware qua Wi-Fi | Đã có, mặc định luôn bật | Tự khởi động ArduinoOTA sau khi Wi-Fi kết nối; OTA tới `192.168.10.181` |
 | Upload từ máy tính khác trong LAN | Đã có | Máy tính và ESP phải cùng mạng |
@@ -130,6 +133,10 @@ Không ghi chat ID hoặc token thật vào source code; các giá trị đượ
 `.env` khi build. Sau mỗi lần ESP kết nối Wi-Fi, firmware gửi một thông báo
 plain-text qua `POST /internal/messages/v1` với device name cấu hình được và
 địa chỉ IP.
+Sau khi mở `http://<IP-ESP>/` trong cùng mạng LAN, có thể nhập tên mới và
+nhấn **Save**. Tên hiển thị Telegram và hostname OTA `.local` được cập nhật
+ngay, đồng thời lưu trong EEPROM để giữ lại sau reboot. Hostname OTA được
+chuẩn hóa từ tên hiển thị (chữ thường, dấu cách thành dấu gạch ngang).
 Nếu gateway tạm thời chưa sẵn sàng, firmware retry mỗi 10 giây cho đến khi
 request được gateway chấp nhận. Idempotency key chứa chip ID và boot counter
 lưu trong EEPROM, nên reboot luôn tạo delivery mới thay vì bị gateway nhận
@@ -177,6 +184,9 @@ NodeMCU ESP8266
    │
    └── Telegram Gateway ──> Telegram
           └── Device name và IP sau boot/reconnect
+   │
+   └── HTTP :80 (LAN) ──> Trang đổi tên
+          └── EEPROM + Telegram + OTA hostname
    │
    └── LED_BUILTIN
           └── Nhấp nháy mỗi 500 ms

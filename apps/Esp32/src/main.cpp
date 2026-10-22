@@ -2,6 +2,7 @@
 #include <ArduinoOTA.h>
 #include <EEPROM.h>
 #include <ESP8266HTTPClient.h>
+#include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 
 #include "secrets.h"
@@ -11,8 +12,12 @@ constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 25000;
 constexpr uint32_t WIFI_RETRY_INTERVAL_MS = 10000;
 constexpr uint32_t BLINK_INTERVAL_MS = 500;
 constexpr uint32_t TELEGRAM_RETRY_INTERVAL_MS = 10000;
-constexpr uint8_t EEPROM_SIZE = 8;
+constexpr uint8_t EEPROM_SIZE = 80;
 constexpr int EEPROM_BOOT_COUNTER_ADDRESS = 0;
+constexpr int EEPROM_CONFIG_ADDRESS = 8;
+constexpr uint32_t DEVICE_CONFIG_MAGIC = 0x45535031;
+constexpr size_t DEVICE_NAME_LENGTH = 32;
+constexpr size_t OTA_HOSTNAME_LENGTH = 32;
 
 uint32_t lastWiFiAttemptAt = 0;
 uint32_t lastBlinkAt = 0;
@@ -24,6 +29,156 @@ bool otaInProgress = false;
 bool wifiConnectionActive = false;
 bool telegramNotifiedForConnection = false;
 bool ledState = false;
+bool webServerStarted = false;
+ESP8266WebServer webServer(80);
+
+struct DeviceConfig {
+  uint32_t magic;
+  char deviceName[DEVICE_NAME_LENGTH];
+  char otaHostname[OTA_HOSTNAME_LENGTH];
+};
+
+DeviceConfig deviceConfig{};
+
+void setupOta();
+
+String htmlEscape(const String& value) {
+  String escaped;
+  escaped.reserve(value.length() + 16);
+  for (size_t index = 0; index < value.length(); ++index) {
+    switch (value[index]) {
+      case '&':
+        escaped += "&amp;";
+        break;
+      case '<':
+        escaped += "&lt;";
+        break;
+      case '>':
+        escaped += "&gt;";
+        break;
+      case '"':
+        escaped += "&quot;";
+        break;
+      case '\'':
+        escaped += "&#39;";
+        break;
+      default:
+        escaped += value[index];
+        break;
+    }
+  }
+  return escaped;
+}
+
+String normalizeHostname(const String& value) {
+  String hostname;
+  hostname.reserve(OTA_HOSTNAME_LENGTH - 1);
+  for (size_t index = 0; index < value.length() &&
+                          hostname.length() < OTA_HOSTNAME_LENGTH - 1;
+       ++index) {
+    const char character = value[index];
+    const unsigned char unsignedCharacter =
+        static_cast<unsigned char>(character);
+    if (isalnum(unsignedCharacter)) {
+      hostname += static_cast<char>(tolower(unsignedCharacter));
+    } else if ((character == '-' || character == '_' || character == ' ') &&
+               hostname.length() > 0 && hostname[hostname.length() - 1] != '-') {
+      hostname += '-';
+    }
+  }
+  while (hostname.endsWith("-")) {
+    hostname.remove(hostname.length() - 1);
+  }
+  return hostname;
+}
+
+void copyConfigValue(char* destination, size_t destinationSize,
+                     const String& value) {
+  value.substring(0, destinationSize - 1).toCharArray(destination,
+                                                        destinationSize);
+}
+
+void loadDeviceConfig() {
+  EEPROM.get(EEPROM_CONFIG_ADDRESS, deviceConfig);
+  if (deviceConfig.magic == DEVICE_CONFIG_MAGIC &&
+      deviceConfig.deviceName[0] != '\0' &&
+      deviceConfig.otaHostname[0] != '\0') {
+    return;
+  }
+
+  deviceConfig.magic = DEVICE_CONFIG_MAGIC;
+  copyConfigValue(deviceConfig.deviceName, DEVICE_NAME_LENGTH, DEVICE_NAME);
+  copyConfigValue(deviceConfig.otaHostname, OTA_HOSTNAME_LENGTH, OTA_HOSTNAME);
+  EEPROM.put(EEPROM_CONFIG_ADDRESS, deviceConfig);
+  EEPROM.commit();
+}
+
+void saveDeviceConfig(const String& deviceName) {
+  const String hostname = normalizeHostname(deviceName);
+  copyConfigValue(deviceConfig.deviceName, DEVICE_NAME_LENGTH, deviceName);
+  copyConfigValue(deviceConfig.otaHostname, OTA_HOSTNAME_LENGTH, hostname);
+  EEPROM.put(EEPROM_CONFIG_ADDRESS, deviceConfig);
+  EEPROM.commit();
+}
+
+void handleConfigPage() {
+  const String name = htmlEscape(deviceConfig.deviceName);
+  const String hostname = htmlEscape(deviceConfig.otaHostname);
+  const String page =
+      "<!doctype html><html><meta charset='utf-8'><title>ESP config</title>"
+      "<style>body{font:16px sans-serif;max-width:520px;margin:40px auto;padding:0 16px}"
+      "input,button{font:inherit;padding:8px}input{width:100%;box-sizing:border-box}"
+      "button{margin-top:12px}</style><h1>ESP configuration</h1>"
+      "<p>IP: " +
+      WiFi.localIP().toString() +
+      "</p><form method='post' action='/config'>"
+      "<label for='name'>Device name</label><br><input id='name' name='name' "
+      "maxlength='31' required value='" +
+      name +
+      "'><br><button type='submit'>Save</button></form><p>OTA hostname: " +
+      hostname + ".local</p></html>";
+  webServer.send(HTTP_CODE_OK, "text/html; charset=utf-8", page);
+}
+
+void handleConfigSave() {
+  if (!webServer.hasArg("name")) {
+    webServer.send(HTTP_CODE_BAD_REQUEST, "text/plain", "Missing name");
+    return;
+  }
+
+  const String name = webServer.arg("name");
+  const String hostname = normalizeHostname(name);
+  if (name.length() == 0 || name.length() >= DEVICE_NAME_LENGTH ||
+      hostname.length() == 0) {
+    webServer.send(HTTP_CODE_BAD_REQUEST, "text/plain",
+                   "Name must be 1-31 characters and contain a valid hostname");
+    return;
+  }
+
+  saveDeviceConfig(name);
+  if (otaStarted) {
+    ArduinoOTA.end();
+    otaStarted = false;
+    setupOta();
+  }
+  telegramNotifiedForConnection = false;
+  lastTelegramAttemptAt = 0;
+  webServer.send(HTTP_CODE_OK, "text/html; charset=utf-8",
+                 "<p>Saved. The new name is active. <a href='/'>Back</a></p>");
+  Serial.printf("[CONFIG] name=%s, ota=%s\n", deviceConfig.deviceName,
+                deviceConfig.otaHostname);
+}
+
+void setupWebServer() {
+  if (webServerStarted) {
+    return;
+  }
+  webServer.on("/", HTTP_GET, handleConfigPage);
+  webServer.on("/config", HTTP_POST, handleConfigSave);
+  webServer.begin();
+  webServerStarted = true;
+  Serial.println("[HTTP] configuration page ready");
+}
 
 void initializeBootSequence() {
   EEPROM.begin(EEPROM_SIZE);
@@ -43,7 +198,7 @@ void setupOta() {
     return;
   }
 
-  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  ArduinoOTA.setHostname(deviceConfig.otaHostname);
   ArduinoOTA.setPassword(OTA_PASSWORD);
 
   ArduinoOTA.onStart([]() {
@@ -64,7 +219,7 @@ void setupOta() {
   ArduinoOTA.begin();
   otaStarted = true;
   Serial.print("[OTA] ready at ");
-  Serial.print(OTA_HOSTNAME);
+  Serial.print(deviceConfig.otaHostname);
   Serial.println(".local");
 }
 
@@ -142,7 +297,7 @@ bool notifyTelegram() {
   const String idempotencyKey =
       String("esp-") + String(ESP.getChipId(), HEX) + "-boot-" +
       String(bootSequence) + "-wifi-" + String(wifiConnectionSequence);
-  const String text = String("ESP online\nDevice: ") + DEVICE_NAME +
+  const String text = String("ESP online\nDevice: ") + deviceConfig.deviceName +
                       "\nIP: " + WiFi.localIP().toString();
   const String payload = String("{\"idempotencyKey\":\"") +
                          jsonEscape(idempotencyKey) +
@@ -193,12 +348,14 @@ void setup() {
   delay(100);
   Serial.println("[BOOT] OTA and blinking firmware starting");
   initializeBootSequence();
+  loadDeviceConfig();
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
 
   if (connectWiFi()) {
     setupOta();
+    setupWebServer();
   }
 }
 
@@ -212,6 +369,8 @@ void loop() {
       telegramNotifiedForConnection = false;
     }
     setupOta();
+    setupWebServer();
+    webServer.handleClient();
     notifyTelegramWhenConnected();
     ArduinoOTA.handle();
   } else if (now - lastWiFiAttemptAt >= WIFI_RETRY_INTERVAL_MS) {
