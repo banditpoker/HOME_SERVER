@@ -29,6 +29,7 @@ mindmap
         IP hiện tại: 192.168.10.181
         Hostname: nodemcu-01.local
         Cổng: UDP 8266
+        Ubuntu callback upload: TCP 8267
         Password OTA
         pio run --target upload
     Kiểm tra hoạt động
@@ -72,7 +73,8 @@ upload_port = 192.168.10.181
 OTA là tính năng mặc định của firmware và không có cờ tắt theo build. Sau mỗi
 lần khởi động, firmware sẽ tự khởi tạo ArduinoOTA ngay khi Wi-Fi kết nối;
 nếu Wi-Fi bị mất, firmware tự reconnect và tiếp tục duy trì OTA khi kết nối
-trở lại.
+trở lại. Khi upload từ Ubuntu, PlatformIO dùng `192.168.10.135:8267` làm
+callback TCP cố định; firewall Ubuntu phải cho phép cổng này từ mạng LAN.
 
 `OTA_PASSWORD` và cờ `--auth` được lấy tự động từ `.env` khi chạy
 PlatformIO; không ghi password vào `platformio.ini`.

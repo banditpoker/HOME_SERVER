@@ -73,4 +73,4 @@ secrets_header.write_text(
     ),
     encoding="utf-8",
 )
-env.Replace(UPLOAD_FLAGS=[f"--auth={values['OTA_PASSWORD']}"])
+env.Append(UPLOAD_FLAGS=[f"--auth={values['OTA_PASSWORD']}"])
