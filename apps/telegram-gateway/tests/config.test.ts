@@ -5,6 +5,7 @@ const validEnvironment = {
   DATABASE_URL: "postgresql://user:password@localhost:5432/gateway",
   TELEGRAM_BOT_TOKEN: "test-token",
   TELEGRAM_WEBHOOK_SECRET: "test-secret",
+  INTERNAL_API_KEY: "internal-api-key",
 };
 
 describe("loadConfig", () => {
@@ -14,18 +15,21 @@ describe("loadConfig", () => {
       databaseUrl: validEnvironment.DATABASE_URL,
       telegramBotToken: validEnvironment.TELEGRAM_BOT_TOKEN,
       telegramWebhookSecret: validEnvironment.TELEGRAM_WEBHOOK_SECRET,
+      internalApiKey: validEnvironment.INTERNAL_API_KEY,
     });
   });
 
-  it.each(["DATABASE_URL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"])(
-    "rejects a missing %s",
-    (key) => {
-      const environment = { ...validEnvironment };
-      delete environment[key as keyof typeof environment];
+  it.each([
+    "DATABASE_URL",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "INTERNAL_API_KEY",
+  ])("rejects a missing %s", (key) => {
+    const environment = { ...validEnvironment };
+    delete environment[key as keyof typeof environment];
 
-      expect(() => loadConfig(environment)).toThrow(`${key} is required`);
-    },
-  );
+    expect(() => loadConfig(environment)).toThrow(`${key} is required`);
+  });
 
   it("rejects non-PostgreSQL database URLs", () => {
     expect(() =>

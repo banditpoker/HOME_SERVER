@@ -3,6 +3,7 @@ export interface AppConfig {
   databaseUrl: string;
   telegramBotToken: string;
   telegramWebhookSecret: string;
+  internalApiKey: string;
 }
 
 export function loadConfig(
@@ -11,6 +12,7 @@ export function loadConfig(
   const databaseUrl = environment.DATABASE_URL;
   const telegramBotToken = environment.TELEGRAM_BOT_TOKEN;
   const telegramWebhookSecret = environment.TELEGRAM_WEBHOOK_SECRET;
+  const internalApiKey = environment.INTERNAL_API_KEY;
 
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is required");
@@ -20,6 +22,9 @@ export function loadConfig(
   }
   if (!telegramWebhookSecret) {
     throw new Error("TELEGRAM_WEBHOOK_SECRET is required");
+  }
+  if (!internalApiKey) {
+    throw new Error("INTERNAL_API_KEY is required");
   }
 
   let databaseProtocol: string;
@@ -38,5 +43,11 @@ export function loadConfig(
     throw new Error("PORT must be an integer between 1 and 65535");
   }
 
-  return { port, databaseUrl, telegramBotToken, telegramWebhookSecret };
+  return {
+    port,
+    databaseUrl,
+    telegramBotToken,
+    telegramWebhookSecret,
+    internalApiKey,
+  };
 }

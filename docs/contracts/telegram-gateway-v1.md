@@ -64,6 +64,15 @@ Internal services submit:
 
 `POST /internal/messages/v1`
 
+The request must include:
+
+```http
+Authorization: Bearer <internal-api-key>
+```
+
+Requests with a missing or invalid key receive HTTP 401. The key is configured
+outside the contract in `INTERNAL_API_KEY` and must not be logged or committed.
+
 Request:
 
 ```json

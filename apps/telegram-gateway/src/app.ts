@@ -81,7 +81,11 @@ function parseOutboundMessageRequest(
   };
 }
 
-export function buildApp(repository: GatewayRepository, webhookSecret: string) {
+export function buildApp(
+  repository: GatewayRepository,
+  webhookSecret: string,
+  internalApiKey: string,
+) {
   const app = Fastify({
     bodyLimit: 1_048_576,
     logger: {
@@ -145,6 +149,21 @@ export function buildApp(repository: GatewayRepository, webhookSecret: string) {
   });
 
   app.post("/internal/messages/v1", async (request, reply) => {
+    const authorization = request.headers.authorization;
+    if (
+      typeof authorization !== "string" ||
+      !matchesSecret(
+        authorization.startsWith("Bearer ")
+          ? authorization.slice("Bearer ".length)
+          : undefined,
+        internalApiKey,
+      )
+    ) {
+      return reply
+        .code(401)
+        .send(errorBody(request.id, "unauthorized", "Request is unauthorized"));
+    }
+
     const message = parseOutboundMessageRequest(request.body);
     if (!message) {
       return reply

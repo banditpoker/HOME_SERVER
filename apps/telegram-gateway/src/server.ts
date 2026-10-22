@@ -12,7 +12,11 @@ const database = new Pool({
   idleTimeoutMillis: 30_000,
 });
 const repository = new PostgresGatewayRepository(database);
-const app = buildApp(repository, config.telegramWebhookSecret);
+const app = buildApp(
+  repository,
+  config.telegramWebhookSecret,
+  config.internalApiKey,
+);
 const deliveryWorker = new DeliveryWorker(
   repository,
   new TelegramBotSender(config.telegramBotToken),

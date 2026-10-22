@@ -28,6 +28,9 @@ const validUpdate = {
 const webhookHeaders = {
   "x-telegram-bot-api-secret-token": "expected-secret",
 };
+const internalHeaders = {
+  authorization: "Bearer internal-api-key",
+};
 
 describe("Telegram webhook", () => {
   const apps: ReturnType<typeof buildApp>[] = [];
@@ -43,14 +46,34 @@ describe("Telegram webhook", () => {
       await Promise.all(apps.splice(0).map((app) => app.close()));
     });
 
-    it("queues a valid plain-text delivery", async () => {
+    it("requires the internal API key", async () => {
       const repository = createRepository();
-      const app = buildApp(repository, "expected-secret");
+      const app = buildApp(repository, "expected-secret", "internal-api-key");
       apps.push(app);
 
       const response = await app.inject({
         method: "POST",
         url: "/internal/messages/v1",
+        payload: {
+          idempotencyKey: "alert-unauthorized",
+          chatId: "-100123",
+          text: "hello",
+        },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(repository.enqueueDelivery).not.toHaveBeenCalled();
+    });
+
+    it("queues a valid plain-text delivery", async () => {
+      const repository = createRepository();
+      const app = buildApp(repository, "expected-secret", "internal-api-key");
+      apps.push(app);
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/internal/messages/v1",
+        headers: internalHeaders,
         payload: {
           idempotencyKey: "alert-1",
           chatId: "-100123",
@@ -82,12 +105,13 @@ describe("Telegram webhook", () => {
       },
     ])("rejects invalid outbound request %#", async (payload) => {
       const repository = createRepository();
-      const app = buildApp(repository, "expected-secret");
+      const app = buildApp(repository, "expected-secret", "internal-api-key");
       apps.push(app);
 
       const response = await app.inject({
         method: "POST",
         url: "/internal/messages/v1",
+        headers: internalHeaders,
         payload,
       });
 
@@ -99,12 +123,13 @@ describe("Telegram webhook", () => {
       const repository = createRepository({
         enqueueDelivery: vi.fn(async () => ({ status: "conflict" as const })),
       });
-      const app = buildApp(repository, "expected-secret");
+      const app = buildApp(repository, "expected-secret", "internal-api-key");
       apps.push(app);
 
       const response = await app.inject({
         method: "POST",
         url: "/internal/messages/v1",
+        headers: internalHeaders,
         payload: {
           idempotencyKey: "alert-1",
           chatId: "-100123",
@@ -124,12 +149,13 @@ describe("Telegram webhook", () => {
           deliveryStatus: "retry_wait" as const,
         })),
       });
-      const app = buildApp(repository, "expected-secret");
+      const app = buildApp(repository, "expected-secret", "internal-api-key");
       apps.push(app);
 
       const response = await app.inject({
         method: "POST",
         url: "/internal/messages/v1",
+        headers: internalHeaders,
         payload: {
           idempotencyKey: "alert-1",
           chatId: "-100123",
@@ -146,7 +172,7 @@ describe("Telegram webhook", () => {
   });
 
   function createApp(repository = createRepository()) {
-    const app = buildApp(repository, "expected-secret");
+    const app = buildApp(repository, "expected-secret", "internal-api-key");
     apps.push(app);
     return { app, repository };
   }
