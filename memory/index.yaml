@@ -18,6 +18,10 @@ entries:
     path: memory/services/esp8266-firmware/overview.md
     kind: service
     status: active
+  - id: esp32-camera-overview
+    path: memory/services/esp32-camera/overview.md
+    kind: service
+    status: active
   - id: adr-canonical-context
     path: memory/decisions/ADR-001-canonical-context-in-git.md
     kind: decision

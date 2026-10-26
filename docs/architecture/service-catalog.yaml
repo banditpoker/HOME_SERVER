@@ -2,7 +2,7 @@ version: 1
 services:
   esp8266-firmware:
     type: device
-    path: apps/Esp32
+    path: apps/Esp8266
     status: existing
     runtime: embedded
     language: cpp
@@ -23,6 +23,32 @@ services:
       stores: []
     operations:
       documentation: apps/Esp32/ESP_FEATURE_MAP.md
+      build: pio run
+      monitor: pio device monitor --baud 115200
+
+  esp32-camera:
+    type: device
+    path: apps/esp32-camera
+    status: existing
+    runtime: embedded
+    language: cpp
+    hardware:
+      board: AI Thinker ESP32-CAM
+      microcontroller: ESP32
+    responsibilities:
+      - initialize the camera and validate a local JPEG capture
+      - connect the device to Wi-Fi
+      - accept password-protected firmware updates over ArduinoOTA
+    exposes:
+      - name: arduino-ota
+        protocol: tcp
+        port: 3232
+    depends_on: []
+    used_by: []
+    data:
+      stores: []
+    operations:
+      documentation: apps/esp32-camera/ESP_FEATURE_MAP.md
       build: pio run
       monitor: pio device monitor --baud 115200
 

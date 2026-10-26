@@ -112,7 +112,8 @@ checked only after the corresponding file or behavior exists and has been verifi
 
 ## Phase 4 - Future services
 
-- [x] Add the initial ESP8266 firmware service under `apps/Esp32/` and document its boundaries.
+- [x] Add the initial ESP8266 firmware service under `apps/Esp8266/` and document its boundaries.
+- [x] Add an independent ESP32-CAM firmware scaffold under `apps/esp32-camera/`.
 - [ ] Define the IoT water-quality event contract.
 - [ ] Add the IoT service using the Telegram gateway adapter.
 - [ ] Document monitoring, backup, media, ecommerce, and automation boundaries.
