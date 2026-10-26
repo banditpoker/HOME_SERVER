@@ -27,8 +27,8 @@ bool initializeCamera() {
   cameraConfig.pin_pclk = 22;
   cameraConfig.pin_vsync = 25;
   cameraConfig.pin_href = 23;
-  cameraConfig.pin_sscb_sda = 26;
-  cameraConfig.pin_sscb_scl = 27;
+  cameraConfig.pin_sccb_sda = 26;
+  cameraConfig.pin_sccb_scl = 27;
   cameraConfig.pin_pwdn = 32;
   cameraConfig.pin_reset = -1;
   cameraConfig.xclk_freq_hz = 20000000;
