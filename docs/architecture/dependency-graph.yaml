@@ -9,3 +9,6 @@ edges:
   - from: iot-water-quality
     to: telegram-gateway
     reason: alert-delivery
+  - from: esp32-camera
+    to: telegram-gateway
+    reason: device-status-notification

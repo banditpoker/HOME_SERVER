@@ -22,7 +22,7 @@ services:
     data:
       stores: []
     operations:
-      documentation: apps/Esp32/ESP_FEATURE_MAP.md
+      documentation: apps/Esp8266/ESP_FEATURE_MAP.md
       build: pio run
       monitor: pio device monitor --baud 115200
 
@@ -38,12 +38,14 @@ services:
     responsibilities:
       - initialize the camera and validate a local JPEG capture
       - connect the device to Wi-Fi
+      - send the device name and current IP through the Telegram gateway contract
       - accept password-protected firmware updates over ArduinoOTA
     exposes:
       - name: arduino-ota
         protocol: tcp
         port: 3232
-    depends_on: []
+    depends_on:
+      - telegram-gateway
     used_by: []
     data:
       stores: []
@@ -75,6 +77,7 @@ services:
       - traefik
     used_by:
       - iot-water-quality
+      - esp32-camera
     data:
       stores:
         - telegram_events
